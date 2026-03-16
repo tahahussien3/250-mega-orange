@@ -62,7 +62,7 @@ def orange_logic(number, password):
         q_data = q_res.json()
         
         if q_data.get('ErrorCode') == 1:
-            return {"status": "error", "message": "تم تفعيل العرض بنجاح معاك 250 ميجا."}
+            return {"status": "error", "message": "انت خدت العرض النهاردة قبل كده"}
 
         # الخطوة 4: تجميع الإجابات الصحيحة
         answers_list = []
@@ -82,7 +82,7 @@ def orange_logic(number, password):
         
         result_data = sub_res.json()
         if result_data.get('ErrorDescription') == "FawazeerSuccess":
-            return {"status": "success", "message": "Done! 250 MB sent."}
+            return {"status": "success", "message": "تم تفعيل 250 ميجا هدية."}
         
         return {"status": "error", "message": result_data.get('ErrorDescription', 'Operation failed')}
 
