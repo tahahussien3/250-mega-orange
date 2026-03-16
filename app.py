@@ -27,6 +27,76 @@ def orange_logic(number, password):
     try:
         # Step 1: Login
         res = session.post(signin_url, json=payload, timeout=50)
+        
+        # التأكد إن الرد مش فاضي وقابل للقراءة كـ JSON
+        try:
+            auth_data = res.json()
+        except Exception:
+            return {"status": "error", "message": "Incorrect phone number or password."}
+            
+        if 'SignInUserResult' not in auth_data or 'AccessToken' not in auth_data['SignInUserResult']:
+            return {"status": "error", "message": "Incorrect phone number or password."}
+            
+        access_token = auth_data['SignInUserResult']['AccessToken']
+
+        # Step 2: Token Generation
+        gen_url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
+        gen_payload = {
+            "ChannelName": "MobinilAndMe",
+            "ChannelPassword": "ig3yh*mk5l42@oj7QAR8yF",
+            "Dial": number,
+            "Language": "ar",
+            "Module": "0",
+            "Password": password
+        }
+        token_res = session.post(gen_url, json=gen_payload, headers={'Token': access_token})
+        
+        try:
+            final_token = token_res.json().get("Token")
+        except Exception:
+            return {"status": "error", "message": "Session expired, please try again."}
+
+        # Step 3: Fetch Questions
+        q_url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
+        q_res = session.post(q_url, json={"Dial": number, "Language": "ar", "Token": final_token})
+        q_data = q_res.json()
+        
+        if q_data.get('ErrorCode') == 1:
+            return {"status": "error", "message": "Already claimed today."}
+
+        # Step 4: Submit Correct Answers
+        answers_list = []
+        for q in q_data.get("Questions", []):
+            for a in q.get("Answers", []):
+                if a.get("IsCorrect"):
+                    answers_list.append({"QuestionId": a["QuestionId"], "AnswerId": a["Id"]})
+                    break
+
+        sub_url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
+        sub_res = session.post(sub_url, json={"Dial": number, "Language": "ar", "Token": final_token, "Answers": answers_list})
+        
+        if sub_res.json().get('ErrorDescription') == "FawazeerSuccess":
+            return {"status": "success", "message": "Done! 250 MB sent."}
+        
+        return {"status": "error", "message": sub_res.json().get('ErrorDescription', 'Operation failed')}
+
+    except Exception as e:
+        # لو حصل أي خطأ تقني غير متوقع
+        return {"status": "error", "message": "Service is busy, please try again later."}
+    session = requests.Session()
+    signin_url = "https://services.orange.eg/SignIn.svc/SignInUser"
+    payload = {
+        "appVersion": "9.0.1",
+        "channel": {"ChannelName": "MobinilAndMe", "Password": "ig3yh*mk5l42@oj7QAR8yF"},
+        "dialNumber": number,
+        "isAndroid": True,
+        "lang": "ar",
+        "password": password
+    }
+    
+    try:
+        # Step 1: Login
+        res = session.post(signin_url, json=payload, timeout=50)
         auth_data = res.json()
         
         if 'SignInUserResult' not in auth_data or 'AccessToken' not in auth_data['SignInUserResult']:
