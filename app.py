@@ -72,7 +72,7 @@ def orange_logic(number, password):
 
     except Exception as e:
         # Returning technical error for better debugging during migration
-        return {"status": "error", "message": f"Connection Error: {str(e)}"}
+        return {"status": "error", "message": f"Technical Error: {str(e)}"}
 
 @app.route('/activate', methods=['POST', 'OPTIONS'])
 def activate():
