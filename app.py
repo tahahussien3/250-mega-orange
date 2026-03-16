@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import requests
+import os
 
 app = Flask(__name__)
 
@@ -24,8 +25,8 @@ def orange_logic(number, password):
     }
     
     try:
-        # Login
-        res = session.post(signin_url, json=payload, timeout=15)
+        # Step 1: Login
+        res = session.post(signin_url, json=payload, timeout=20)
         auth_data = res.json()
         
         if 'SignInUserResult' not in auth_data or 'AccessToken' not in auth_data['SignInUserResult']:
@@ -33,7 +34,7 @@ def orange_logic(number, password):
             
         access_token = auth_data['SignInUserResult']['AccessToken']
 
-        # Token Generation
+        # Step 2: Token Generation
         gen_url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
         gen_payload = {
             "ChannelName": "MobinilAndMe",
@@ -46,14 +47,14 @@ def orange_logic(number, password):
         token_res = session.post(gen_url, json=gen_payload, headers={'Token': access_token})
         final_token = token_res.json().get("Token")
 
-        # Fetch Questions
+        # Step 3: Fetch Questions
         q_url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
         q_data = session.post(q_url, json={"Dial": number, "Language": "ar", "Token": final_token}).json()
         
         if q_data.get('ErrorCode') == 1:
             return {"status": "error", "message": "Already claimed today."}
 
-        # Submit Answers
+        # Step 4: Submit Correct Answers
         answers_list = []
         for q in q_data.get("Questions", []):
             for a in q.get("Answers", []):
@@ -70,7 +71,8 @@ def orange_logic(number, password):
         return {"status": "error", "message": sub_res.json().get('ErrorDescription', 'Operation failed')}
 
     except Exception as e:
-        return {"status": "error", "message": "Server Connection Error"}
+        # Returning technical error for better debugging during migration
+        return {"status": "error", "message": f"Connection Error: {str(e)}"}
 
 @app.route('/activate', methods=['POST', 'OPTIONS'])
 def activate():
@@ -87,4 +89,6 @@ def activate():
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run()
+    # CRITICAL: Railway uses the PORT environment variable
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
