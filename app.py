@@ -26,7 +26,7 @@ def orange_logic(number, password):
     
     try:
         # Step 1: Login
-        res = session.post(signin_url, json=payload, timeout=20)
+        res = session.post(signin_url, json=payload, timeout=50)
         auth_data = res.json()
         
         if 'SignInUserResult' not in auth_data or 'AccessToken' not in auth_data['SignInUserResult']:
