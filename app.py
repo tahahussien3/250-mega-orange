@@ -5,106 +5,103 @@ import json
 import os
 
 app = Flask(__name__)
-CORS(app) # ضروري جداً للسماح لـ JS بالاتصال بالسيرفر
+CORS(app)
 
 @app.route('/activate', methods=['POST'])
 def activate():
-    # استلام البيانات من FormData في كود الـ JS
+    # استلام البيانات من النموذج
     number = request.form.get("phone")
     password = request.form.get("password")
 
     if not number or not password:
-        return jsonify({"status": "error", "message": "Missing Data"})
+        return jsonify({"status": "error", "message": "بيانات ناقصة!"})
 
-    # --- بداية كود أورنج الخاص بك (بالحرف) ---
+    # --- كود أورنج الخاص بك كما هو ---
     url = "https://services.orange.eg/SignIn.svc/SignInUser"
     payload = {
         "appVersion": "9.0.1",
-        "channel": {
-            "ChannelName": "MobinilAndMe",
-            "Password": "ig3yh*mk5l42@oj7QAR8yF"
-        },
+        "channel": {"ChannelName": "MobinilAndMe", "Password": "ig3yh*mk5l42@oj7QAR8yF"},
         "dialNumber": number,
         "isAndroid": True,
         "lang": "ar",
-        "password": password}
-    headers = {
+        "password": password
+    }
+    # تعديل بسيط: دمج الـ Content-Type لمنع الخطأ في الإرسال
+    headers_1 = {
         'User-Agent': "okhttp/4.10.0",
         'Connection': "Keep-Alive",
         'Accept-Encoding': "gzip",
-        'Content-Type': "application/json",
-        'Content-Type': "application/json; charset=UTF-8"}
+        'Content-Type': "application/json; charset=UTF-8"
+    }
     
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
+    response = requests.post(url, data=json.dumps(payload), headers=headers_1)
     
     try:
         AccessToken = response.json()['SignInUserResult']['AccessToken']
     except:
-        return jsonify({"status": "error", "message": "Number or password error"})
+        return jsonify({"status": "error", "message": "خطأ في الرقم أو كلمة السر"})
 
-    url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
-    payload = {
+    url_gen = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
+    payload_gen = {
         "ChannelName": "MobinilAndMe",
         "ChannelPassword": "ig3yh*mk5l42@oj7QAR8yF",
         "Dial": number,
         "Language": "ar",
         "Module": "0",
-        "Password": password}
-    headers = {
+        "Password": password
+    }
+    headers_gen = {
         'User-Agent': "okhttp/4.10.0",
         'Connection': "Keep-Alive",
         'Accept-Encoding': "gzip",
-        'Content-Type': "application/json",
         'AppVersion': "9.0.1",
         'OsVersion': "13",
         'IsAndroid': "true",
         'IsEasyLogin': "false",
         'Token': AccessToken,
-        'Content-Type': "application/json; charset=UTF-8"}
+        'Content-Type': "application/json; charset=UTF-8"
+    }
     
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-    Token = response.json()["Token"]
+    response_gen = requests.post(url_gen, data=json.dumps(payload_gen), headers=headers_gen)
+    Token = response_gen.json()["Token"]
     
-    url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
-    payload = {
-        "Dial": number,
-        "Language": "ar",
-        "Token": Token}
-    headers = {
+    url_q = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
+    payload_q = {"Dial": number, "Language": "ar", "Token": Token}
+    headers_q = {
         'User-Agent': "Mozilla/5.0 (Linux; Android 13; 21061119AG Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/139.0.7258.158 Mobile Safari/537.36",
         'Accept': "application/json, text/plain, */*",
-        'Accept-Encoding': "gzip, deflate, br, zstd",
         'Content-Type': "application/json",
-        'sec-ch-ua-platform': "\"Android\"",
-        'sec-ch-ua': "\"Not;A=Brand\";v=\"99\", \"Android WebView\";v=\"139\", \"Chromium\";v=\"139\"",
-        'sec-ch-ua-mobile': "?1",
-        'Origin': "https://services.orange.eg",
-        'X-Requested-With': "com.orange.mobinilandmf",
-        'Sec-Fetch-Site': "same-origin",
-        'Sec-Fetch-Mode': "cors",
-        'Sec-Fetch-Dest': "empty",
-        'Accept-Language': "ar,en-US;q=0.9,en;q=0.8",}
+        'X-Requested-With': "com.orange.mobinilandmf"
+    }
     
-    response = requests.post(url, data=json.dumps(payload), headers=headers)
-    data = response.json()
+    response_q = requests.post(url_q, data=json.dumps(payload_q), headers=headers_q)
+    data = response_q.json()
     
     if data.get('ErrorCode') == 1:
         return jsonify({"status": "error", "message": "انت دخلت علي الفوازير النهارده جرب بكره"})
 
-    questions = data["Questions"]
+    questions = data.get("Questions", [])
     answers_list = []
-
     for q in questions:
         for a in q["Answers"]:
-            if a["IsCorrect"] == True:
-                answers_list.append({
-                    "QuestionId": a["QuestionId"],
-                    "AnswerId": a["Id"]
-                })
+            if a["IsCorrect"]:
+                answers_list.append({"QuestionId": a["QuestionId"], "AnswerId": a["Id"]})
                 break
                 
-    url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
-    payload = {
+    url_submit = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
+    payload_submit = {"Dial": number, "Language": "ar", "Token": Token, "Answers": answers_list}
+    
+    response_final = requests.post(url_submit, data=json.dumps(payload_submit), headers=headers_q)
+    res_json = response_final.json()
+    
+    if res_json.get('ErrorDescription') == "FawazeerSuccess":
+        return jsonify({"status": "success", "message": "Done send 250 mg"})
+    else:
+        return jsonify({"status": "error", "message": res_json.get('ErrorDescription', 'خطأ غير معروف')})
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
         "Dial": number,
         "Language": "ar",
         "Token": Token,
