@@ -68,7 +68,7 @@ def orange_logic(number, password):
         answers_list = []
         questions = q_data.get("Questions", [])
         if not questions:
-            return {"status": "error", "message": "No offers available right now."}
+            return {"status": "error", "message": "لا يوجد عروض متاحة اليوم"}
 
         for q in questions:
             for a in q.get("Answers", []):
@@ -87,7 +87,7 @@ def orange_logic(number, password):
         return {"status": "error", "message": result_data.get('ErrorDescription', 'Operation failed')}
 
     except Exception:
-        return {"status": "error", "message": "Service is busy, please try again later."}
+        return {"status": "error", "message": "الخدمة غير متاحة الان حاول وقت تانى"}
 
 @app.route('/activate', methods=['POST', 'OPTIONS'])
 def activate():
