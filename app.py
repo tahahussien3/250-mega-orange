@@ -13,13 +13,8 @@ def activate():
     number = data.get("number")
     password = data.get("password")
 
-    if not number or not password:
-        return jsonify({
-            "status": "fail",
-            "message": "لازم تدخل رقم الموبايل وكلمة السر"
-        }), 400
+    # ===== نفس كودك بالحرف =====
 
-    # ---------------- LOGIN ----------------
     url = "https://services.orange.eg/SignIn.svc/SignInUser"
     payload = {
         "appVersion": "9.0.1",
@@ -30,31 +25,20 @@ def activate():
         "dialNumber": number,
         "isAndroid": True,
         "lang": "ar",
-        "password": password
-    }
-
+        "password": password}
     headers = {
         'User-Agent': "okhttp/4.10.0",
         'Connection': "Keep-Alive",
         'Accept-Encoding': "gzip",
-        'Content-Type': "application/json; charset=UTF-8"
-    }
-
+        'Content-Type': "application/json",
+        'Content-Type': "application/json; charset=UTF-8"}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
-
-    print("\n=== LOGIN RESPONSE ===")
-    print("STATUS:", response.status_code)
-    print("TEXT:", response.text)
 
     try:
         AccessToken = response.json()['SignInUserResult']['AccessToken']
     except:
-        return jsonify({
-            "status": "fail",
-            "message": "رقم الموبايل أو كلمة السر غلط"
-        }), 401
+        return jsonify({"status": "fail", "message": "Number or password error"})
 
-    # ---------------- GENERATE TOKEN ----------------
     url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
     payload = {
         "ChannelName": "MobinilAndMe",
@@ -62,65 +46,47 @@ def activate():
         "Dial": number,
         "Language": "ar",
         "Module": "0",
-        "Password": password
-    }
-
-    headers.update({
+        "Password": password}
+    headers = {
+        'User-Agent': "okhttp/4.10.0",
+        'Connection': "Keep-Alive",
+        'Accept-Encoding': "gzip",
+        'Content-Type': "application/json",
         'AppVersion': "9.0.1",
         'OsVersion': "13",
         'IsAndroid': "true",
         'IsEasyLogin': "false",
-        'Token': AccessToken
-    })
-
+        'Token': AccessToken,
+        'Content-Type': "application/json; charset=UTF-8"}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
+    Token = response.json()["Token"]
 
-    print("\n=== GENERATE TOKEN RESPONSE ===")
-    print("STATUS:", response.status_code)
-    print("TEXT:", response.text)
-
-    try:
-        Token = response.json().get("Token")
-    except:
-        return jsonify({
-            "status": "fail",
-            "message": "مشكلة في السيرفر الخارجي"
-        }), 500
-
-    # ---------------- GET QUESTIONS ----------------
     url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
     payload = {
         "Dial": number,
         "Language": "ar",
-        "Token": Token
-    }
-
-    headers.update({
-        'User-Agent': "Mozilla/5.0",
-        'Accept': "application/json, text/plain, */*"
-    })
-
+        "Token": Token}
+    headers = {
+        'User-Agent': "Mozilla/5.0 (Linux; Android 13; 21061119AG Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/139.0.7258.158 Mobile Safari/537.36",
+        'Accept': "application/json, text/plain, */*",
+        'Accept-Encoding': "gzip, deflate, br, zstd",
+        'Content-Type': "application/json",
+        'sec-ch-ua-platform': "\"Android\"",
+        'sec-ch-ua': "\"Not;A=Brand\";v=\"99\", \"Android WebView\";v=\"139\", \"Chromium\";v=\"139\"",
+        'sec-ch-ua-mobile': "?1",
+        'Origin': "https://services.orange.eg",
+        'X-Requested-With': "com.orange.mobinilandmf",
+        'Sec-Fetch-Site': "same-origin",
+        'Sec-Fetch-Mode': "cors",
+        'Sec-Fetch-Dest': "empty",
+        'Accept-Language': "ar,en-US;q=0.9,en;q=0.8",}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
+    data = response.json()
 
-    print("\n=== QUESTIONS RESPONSE ===")
-    print("STATUS:", response.status_code)
-    print("TEXT:", response.text)
+    if data['ErrorCode'] == 1:
+        return jsonify({"status": "fail", "message": "انت دخلت علي الفوازير النهارده جرب بكره"})
 
-    try:
-        data = response.json()
-    except:
-        return jsonify({
-            "status": "fail",
-            "message": "السيرفر الخارجي مش بيرد"
-        }), 500
-
-    if data.get('ErrorCode') == 1:
-        return jsonify({
-            "status": "fail",
-            "message": "انت استخدمت العرض النهارده، جرب بكرة"
-        }), 200
-
-    questions = data.get("Questions", [])
+    questions = data["Questions"]
     answers_list = []
 
     for q in questions:
@@ -132,48 +98,20 @@ def activate():
                 })
                 break
 
-    # ---------------- SUBMIT ----------------
     url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
     payload = {
         "Dial": number,
         "Language": "ar",
         "Token": Token,
-        "Answers": answers_list
-    }
-
+        "Answers": answers_list}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
 
-    print("\n=== SUBMIT RESPONSE ===")
-    print("STATUS:", response.status_code)
-    print("TEXT:", response.text)
-
-    try:
-        result = response.json()
-    except:
-        return jsonify({
-            "status": "fail",
-            "message": "مشكلة أثناء إرسال الإجابات"
-        }), 500
-
-    error = result.get('ErrorDescription')
-
-    if error == "FawazeerSuccess":
-        message = "تم إضافة 250 ميجا بنجاح 🔥"
-        status = "success"
-
-    elif error == "GiftCapped":
-        message = "تم استهلاك الحد الأقصى للهدايا 😅"
-        status = "fail"
-
+    if response.json()['ErrorDescription'] == "FawazeerSuccess":
+        return jsonify({"status": "success", "message": "Done send 250 mg"})
     else:
-        message = "حصل خطأ: " + str(error)
-        status = "fail"
+        return jsonify({"status": "fail", "message": response.json()['ErrorDescription']})
 
-    return jsonify({
-        "status": status,
-        "message": message
-    })
-
+# ================================
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
