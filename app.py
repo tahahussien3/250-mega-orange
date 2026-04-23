@@ -8,40 +8,39 @@ app = Flask(__name__)
 CORS(app)
 
 def orange_logic(number, password):
+    # شرط أن يبدأ الرقم بـ 012
+    if not str(number).startswith("012"):
+        return {"status": "error", "message": "عذراً، العرض مخصص لأرقام أورانج فقط (012)"}
+
     session = requests.Session()
     
-    # الخطوة 1: تسجيل الدخول (SignIn)
-    signin_url = "https://services.orange.eg/SignIn.svc/SignInUser"
-    signin_payload = {
+    # --- الخطوة 1: تسجيل الدخول ---
+    url_signin = "https://services.orange.eg/SignIn.svc/SignInUser"
+    payload_signin = {
         "appVersion": "9.0.1",
-        "channel": {
-            "ChannelName": "MobinilAndMe",
-            "Password": "ig3yh*mk5l42@oj7QAR8yF"
-        },
+        "channel": {"ChannelName": "MobinilAndMe", "Password": "ig3yh*mk5l42@oj7QAR8yF"},
         "dialNumber": number,
         "isAndroid": True,
         "lang": "ar",
         "password": password
     }
-    signin_headers = {
+    headers_signin = {
         'User-Agent': "okhttp/4.10.0",
-        'Connection': "Keep-Alive",
-        'Accept-Encoding': "gzip",
         'Content-Type': "application/json; charset=UTF-8"
     }
 
     try:
-        res1 = session.post(signin_url, data=json.dumps(signin_payload), headers=signin_headers, timeout=20)
+        res1 = session.post(url_signin, data=json.dumps(payload_signin), headers=headers_signin, timeout=20)
         auth_data = res1.json()
         
         if 'SignInUserResult' not in auth_data or 'AccessToken' not in auth_data['SignInUserResult']:
-            return {"status": "error", "message": "رقم الهاتف أو كلمة السر خطأ", "raw": auth_data}
+            return {"status": "error", "message": "رقم الهاتف أو كلمة السر خطأ"}
         
         access_token = auth_data['SignInUserResult']['AccessToken']
 
-        # الخطوة 2: توليد التوكن (Generate Token)
-        gen_url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
-        gen_payload = {
+        # --- الخطوة 2: Generate Token ---
+        url_gen = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
+        payload_gen = {
             "ChannelName": "MobinilAndMe",
             "ChannelPassword": "ig3yh*mk5l42@oj7QAR8yF",
             "Dial": number,
@@ -49,72 +48,56 @@ def orange_logic(number, password):
             "Module": "0",
             "Password": password
         }
-        gen_headers = {
+        headers_gen = {
             'User-Agent': "okhttp/4.10.0",
             'Token': access_token,
             'Content-Type': "application/json; charset=UTF-8"
         }
-        res2 = session.post(gen_url, data=json.dumps(gen_payload), headers=gen_headers, timeout=20)
-        final_token = res2.json().get("Token")
+        res2 = session.post(url_gen, data=json.dumps(payload_gen), headers=headers_gen, timeout=20)
+        token_final = res2.json().get("Token")
 
-        if not final_token:
-            return {"status": "error", "message": "فشل في الحصول على توكن التفعيل", "raw": res2.json()}
-
-        # الخطوة 3: جلب الأسئلة
-        q_url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
-        q_payload = {"Dial": number, "Language": "ar", "Token": final_token}
-        q_headers = {
-            'User-Agent': "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.158 Mobile Safari/537.36",
+        # --- الخطوة 3: جلب الأسئلة (نفس منطق الاسكربت) ---
+        url_q = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
+        payload_q = {"Dial": number, "Language": "ar", "Token": token_final}
+        headers_q = {
+            'User-Agent': "Mozilla/5.0 (Linux; Android 13; 21061119AG Build/TP1A.220624.014; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/139.0.7258.158 Mobile Safari/537.36",
             'Content-Type': "application/json",
             'X-Requested-With': "com.orange.mobinilandmf"
         }
-        res3 = session.post(q_url, data=json.dumps(q_payload), headers=q_headers, timeout=20)
-        q_data = res3.json()
+        res3 = session.post(url_q, data=json.dumps(payload_q), headers=headers_q, timeout=20)
+        data = res3.json()
 
-        if q_data.get('ErrorCode') == 1:
-            return {"status": "error", "message": "أنت دخلت علي الفوازير النهاردة، جرب بكرة", "raw": q_data}
+        # التحقق من ErrorCode 1 (نفس رسالة الاسكربت)
+        if data.get('ErrorCode') == 1:
+            return {"status": "error", "message": "انت دخلت علي الفوازير النهارده جرب بكره"}
 
-        # الخطوة 4: حل الأسئلة
-        questions = q_data.get("Questions", [])
-        if not questions:
-            return {"status": "error", "message": "لا توجد عروض متاحة حالياً", "raw": q_data}
-
+        # حل الأسئلة
+        questions = data.get("Questions", [])
         answers_list = []
         for q in questions:
-            for a in q.get("Answers", []):
-                if a.get("IsCorrect"):
+            for a in q["Answers"]:
+                if a["IsCorrect"]:
                     answers_list.append({"QuestionId": a["QuestionId"], "AnswerId": a["Id"]})
                     break
 
-        # الخطوة 5: الإرسال النهائي (Submit)
-        sub_url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
-        sub_payload = {
-            "Dial": number,
-            "Language": "ar",
-            "Token": final_token,
-            "Answers": answers_list
-        }
-        res4 = session.post(sub_url, data=json.dumps(sub_payload), headers=q_headers, timeout=20)
-        result_data = res4.json()
-
-        if result_data.get('ErrorDescription') == "FawazeerSuccess":
-            return {"status": "success", "message": "مبروك! تم إرسال 250 ميجا هدية"}
+        # --- الخطوة 4: Submit ---
+        url_sub = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Submit"
+        payload_sub = {"Dial": number, "Language": "ar", "Token": token_final, "Answers": answers_list}
+        res4 = session.post(url_sub, data=json.dumps(payload_sub), headers=headers_q, timeout=20)
+        
+        if res4.json().get('ErrorDescription') == "FawazeerSuccess":
+            return {"status": "success", "message": "Done send 250 mg"}
         else:
-            return {"status": "error", "message": result_data.get('ErrorDescription', 'فشلت العملية'), "raw": result_data}
+            return {"status": "error", "message": res4.json().get('ErrorDescription')}
 
     except Exception as e:
-        return {"status": "error", "message": "حدث خطأ أثناء الاتصال بسيرفر أورانج", "debug": str(e)}
+        return {"status": "error", "message": "حدث خطأ في الاتصال، حاول لاحقاً"}
 
 @app.route('/activate', methods=['POST'])
 def activate():
     num = request.form.get('phone')
     pwd = request.form.get('password')
-    if not num or not pwd:
-        return jsonify({"status": "error", "message": "يرجى إدخال البيانات كاملة"}), 400
-    
-    result = orange_logic(num, pwd)
-    return jsonify(result)
+    return jsonify(orange_logic(num, pwd))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 8080)))
