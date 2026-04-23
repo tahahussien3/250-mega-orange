@@ -79,7 +79,13 @@ def activate():
     print("STATUS:", response.status_code)
     print("TEXT:", response.text)
 
-    Token = response.json().get("Token")
+    try:
+        Token = response.json().get("Token")
+    except:
+        return jsonify({
+            "status": "fail",
+            "message": "مشكلة في السيرفر الخارجي"
+        }), 500
 
     # ---------------- GET QUESTIONS ----------------
     url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
@@ -100,7 +106,13 @@ def activate():
     print("STATUS:", response.status_code)
     print("TEXT:", response.text)
 
-    data = response.json()
+    try:
+        data = response.json()
+    except:
+        return jsonify({
+            "status": "fail",
+            "message": "السيرفر الخارجي مش بيرد"
+        }), 500
 
     if data.get('ErrorCode') == 1:
         return jsonify({
@@ -135,18 +147,32 @@ def activate():
     print("STATUS:", response.status_code)
     print("TEXT:", response.text)
 
-    result = response.json()
-
-    if result.get('ErrorDescription') == "FawazeerSuccess":
-        return jsonify({
-            "status": "success",
-            "message": "تم إضافة 250 ميجا بنجاح 🔥"
-        })
-    else:
+    try:
+        result = response.json()
+    except:
         return jsonify({
             "status": "fail",
-            "message": "حصل خطأ: " + str(result.get('ErrorDescription'))
-        })
+            "message": "مشكلة أثناء إرسال الإجابات"
+        }), 500
+
+    error = result.get('ErrorDescription')
+
+    if error == "FawazeerSuccess":
+        message = "تم إضافة 250 ميجا بنجاح 🔥"
+        status = "success"
+
+    elif error == "GiftCapped":
+        message = "تم استهلاك الحد الأقصى للهدايا 😅"
+        status = "fail"
+
+    else:
+        message = "حصل خطأ: " + str(error)
+        status = "fail"
+
+    return jsonify({
+        "status": status,
+        "message": message
+    })
 
 
 if __name__ == "__main__":
