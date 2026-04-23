@@ -5,6 +5,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
+
 @app.route("/activate", methods=["POST"])
 def activate():
     data = request.json
@@ -13,7 +14,10 @@ def activate():
     password = data.get("password")
 
     if not number or not password:
-        return jsonify({"error": "number and password required"}), 400
+        return jsonify({
+            "status": "fail",
+            "message": "لازم تدخل رقم الموبايل وكلمة السر"
+        }), 400
 
     # ---------------- LOGIN ----------------
     url = "https://services.orange.eg/SignIn.svc/SignInUser"
@@ -41,7 +45,10 @@ def activate():
     try:
         AccessToken = response.json()['SignInUserResult']['AccessToken']
     except:
-        return jsonify({"error": "Number or password error"}), 401
+        return jsonify({
+            "status": "fail",
+            "message": "رقم الموبايل أو كلمة السر غلط"
+        }), 401
 
     # ---------------- GENERATE TOKEN ----------------
     url = "https://services.orange.eg/APIs/Profile/api/BasicAuthentication/Generate"
@@ -82,7 +89,10 @@ def activate():
     data = response.json()
 
     if data.get('ErrorCode') == 1:
-        return jsonify({"message": "already used today"}), 200
+        return jsonify({
+            "status": "fail",
+            "message": "انت استخدمت العرض النهارده، جرب بكرة"
+        }), 200
 
     questions = data.get("Questions", [])
     answers_list = []
@@ -109,9 +119,15 @@ def activate():
     result = response.json()
 
     if result.get('ErrorDescription') == "FawazeerSuccess":
-        return jsonify({"status": "success", "message": "Done send 250 mg"})
+        return jsonify({
+            "status": "success",
+            "message": "تم إضافة 250 ميجا بنجاح 🔥"
+        })
     else:
-        return jsonify({"status": "fail", "message": result.get('ErrorDescription')})
+        return jsonify({
+            "status": "fail",
+            "message": "حصل خطأ: " + str(result.get('ErrorDescription'))
+        })
 
 
 if __name__ == "__main__":
