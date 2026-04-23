@@ -59,7 +59,10 @@ def activate():
         'Token': AccessToken,
         'Content-Type': "application/json; charset=UTF-8"}
     response = requests.post(url, data=json.dumps(payload), headers=headers)
-    Token = response.json()["Token"]
+    try:
+        Token = response.json()["Token"]
+    except:
+        return jsonify({"status": "fail", "message": "الرقم او كلمة السر غلط"})
 
     url = "https://services.orange.eg/APIs/Ramadan2024/api/RamadanOffers/Fawazeer/Questions"
     payload = {
