@@ -42,6 +42,10 @@ def activate():
 
     response = requests.post(url, data=json.dumps(payload), headers=headers)
 
+    print("\n=== LOGIN RESPONSE ===")
+    print("STATUS:", response.status_code)
+    print("TEXT:", response.text)
+
     try:
         AccessToken = response.json()['SignInUserResult']['AccessToken']
     except:
@@ -70,6 +74,11 @@ def activate():
     })
 
     response = requests.post(url, data=json.dumps(payload), headers=headers)
+
+    print("\n=== GENERATE TOKEN RESPONSE ===")
+    print("STATUS:", response.status_code)
+    print("TEXT:", response.text)
+
     Token = response.json().get("Token")
 
     # ---------------- GET QUESTIONS ----------------
@@ -86,6 +95,11 @@ def activate():
     })
 
     response = requests.post(url, data=json.dumps(payload), headers=headers)
+
+    print("\n=== QUESTIONS RESPONSE ===")
+    print("STATUS:", response.status_code)
+    print("TEXT:", response.text)
+
     data = response.json()
 
     if data.get('ErrorCode') == 1:
@@ -116,6 +130,11 @@ def activate():
     }
 
     response = requests.post(url, data=json.dumps(payload), headers=headers)
+
+    print("\n=== SUBMIT RESPONSE ===")
+    print("STATUS:", response.status_code)
+    print("TEXT:", response.text)
+
     result = response.json()
 
     if result.get('ErrorDescription') == "FawazeerSuccess":
