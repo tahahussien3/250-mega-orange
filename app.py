@@ -2,9 +2,9 @@ from flask import Flask, request, jsonify
 import requests
 import json
 from flask_cors import CORS
-CORS(app)
-app = Flask(__name__)
 
+app = Flask(__name__)
+CORS(app)
 @app.route("/activate", methods=["POST"])
 def activate():
     data = request.json
